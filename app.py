@@ -2,39 +2,207 @@ import streamlit as st
 
 from pinyin_pptx import add_pinyin
 
-st.set_page_config(page_title="Lyrics Pinyin Tool", page_icon="🎵")
-st.title("🎵 Lyrics Pinyin Tool")
-st.caption("Upload a lyrics PPTX to automatically add Hanyu Pinyin below each Chinese lyric line. Formatting and background stay unchanged.")
+st.set_page_config(page_title="Lyrics Pinyin", page_icon="🎵", layout="centered")
 
-files = st.file_uploader("Upload PPTX file(s)", type="pptx", accept_multiple_files=True)
+st.markdown(r"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+:root{
+  --paper:#FBFAF7; --surface:#FFFFFF; --ink:#17161C; --muted:#6B7280;
+  --line:#E7E5DF; --accent:#0C8A78; --accent-strong:#0A7365; --accent-tint:#E6F4F1;
+}
+
+/* hide Streamlit chrome for a cleaner product surface */
+#MainMenu, header[data-testid="stHeader"], footer, [data-testid="stToolbar"]{display:none!important;}
+
+.stApp{ background:var(--paper); }
+.block-container{ max-width:660px; padding-top:3.2rem; padding-bottom:4rem; }
+html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; color:var(--ink); }
+
+/* ---------- hero ---------- */
+.hero{ text-align:center; margin-bottom:2.4rem; }
+.eyebrow{
+  font-size:.72rem; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--accent-strong); font-weight:600; margin-bottom:1rem;
+}
+.wordmark{
+  font-family:'Sora',sans-serif; font-weight:700; font-size:2.9rem;
+  line-height:1.15; letter-spacing:-.01em; margin:0; color:var(--ink);
+  display:flex; align-items:baseline; justify-content:center; gap:.12em;
+}
+.wordmark ruby{ font-weight:700; }
+.wordmark rt{
+  font-family:'Inter',sans-serif; font-size:.32em; font-weight:600;
+  color:var(--accent); letter-spacing:.02em; margin-bottom:.15em;
+}
+.wordmark .latin{ margin-left:.18em; }
+.subtitle{
+  margin:1.1rem auto 0; max-width:34rem; color:var(--muted);
+  font-size:1.02rem; line-height:1.6;
+}
+
+/* ---------- file uploader → drop zone ---------- */
+[data-testid="stFileUploader"]{ margin-top:.4rem; }
+[data-testid="stFileUploader"] label{ display:none; }
+[data-testid="stFileUploaderDropzone"]{
+  display:flex!important; flex-direction:column; align-items:center; justify-content:center;
+  gap:.55rem; background:var(--surface); border:2px dashed #CFCEC7; border-radius:18px;
+  padding:2.7rem 1.5rem; transition:all .18s ease; cursor:pointer;
+}
+[data-testid="stFileUploaderDropzone"]:hover{
+  border-color:var(--accent); background:var(--accent-tint);
+}
+[data-testid="stFileUploaderDropzoneInstructions"]{ display:none!important; }
+/* explicit flex order → icon, then text, then the Browse button */
+[data-testid="stFileUploaderDropzone"]::before{
+  order:0; content:"↑"; font-size:1.7rem; line-height:1; color:var(--accent);
+  font-weight:700;
+  width:3rem; height:3rem; display:flex; align-items:center; justify-content:center;
+  background:var(--accent-tint); border-radius:50%;
+}
+[data-testid="stFileUploaderDropzone"]:hover::before{ background:#fff; }
+[data-testid="stFileUploaderDropzone"]::after{
+  order:1; content:"Drag & drop your PPTX here\A or click to browse";
+  white-space:pre-line; text-align:center; color:var(--ink);
+  font-weight:600; font-size:1.02rem; line-height:1.5;
+}
+/* the built-in Browse button, restyled as a quiet pill */
+[data-testid="stFileUploaderDropzone"] button{
+  order:2; margin-top:.35rem; background:transparent!important; color:var(--accent-strong)!important;
+  border:1.5px solid var(--accent)!important; border-radius:10px!important;
+  font-weight:600!important; padding:.4rem 1.1rem!important; transition:all .15s ease;
+}
+[data-testid="stFileUploaderDropzone"] button:hover{
+  background:var(--accent)!important; color:#fff!important;
+}
+/* uploaded-file chips */
+[data-testid="stFileUploaderFile"]{
+  background:var(--surface); border:1px solid var(--line); border-radius:10px;
+  padding:.5rem .7rem; margin-top:.5rem;
+}
+
+/* ---------- advanced settings expander ---------- */
+[data-testid="stExpander"]{ border:none!important; margin-top:1rem; }
+[data-testid="stExpander"] details{
+  background:transparent; border:1px solid var(--line)!important; border-radius:12px;
+}
+[data-testid="stExpander"] summary{ font-weight:500; color:var(--muted); }
+[data-testid="stExpander"] summary:hover{ color:var(--accent-strong); }
+
+/* number inputs */
+[data-testid="stNumberInput"] input{ border-radius:9px; }
+[data-testid="stNumberInput"] label p{ font-weight:500; color:var(--ink); }
+
+/* ---------- result card ---------- */
+[data-testid="stVerticalBlockBorderWrapper"]:has(.result-head){
+  background:var(--surface); border:1px solid var(--line)!important;
+  border-radius:16px; padding:.35rem .35rem;
+  box-shadow:0 1px 2px rgba(20,18,30,.04);
+}
+.result-head{
+  display:flex; align-items:center; gap:.6rem; padding:.35rem .35rem .1rem;
+}
+.result-head .check{
+  flex:none; width:1.5rem; height:1.5rem; border-radius:50%;
+  background:var(--accent); color:#fff; font-size:.85rem; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+}
+.result-head .fname{
+  font-weight:600; color:var(--ink); font-size:.98rem; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap;
+}
+.result-head .pill{
+  margin-left:auto; flex:none; font-size:.7rem; font-weight:600; letter-spacing:.04em;
+  text-transform:uppercase; color:var(--accent-strong);
+  background:var(--accent-tint); padding:.2rem .55rem; border-radius:999px;
+}
+
+/* ---------- download button (the prominent action) ---------- */
+[data-testid="stDownloadButton"] button{
+  width:100%; border:none!important; border-radius:12px!important;
+  background:linear-gradient(135deg,#0FA18C,#0A7365)!important; color:#fff!important;
+  font-family:'Inter',sans-serif; font-weight:600!important; font-size:1.02rem!important;
+  padding:.85rem 1.2rem!important; letter-spacing:.01em;
+  box-shadow:0 6px 16px rgba(12,138,120,.28)!important;
+  transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+[data-testid="stDownloadButton"] button:hover{
+  transform:translateY(-1px); filter:brightness(1.04);
+  box-shadow:0 10px 22px rgba(12,138,120,.34)!important;
+}
+[data-testid="stDownloadButton"] button:active{ transform:translateY(0); }
+[data-testid="stDownloadButton"] button p::before{ content:"↓  "; font-weight:700; }
+
+/* alerts */
+[data-testid="stAlert"]{ border-radius:12px; }
+
+/* footer note */
+.foot{
+  margin-top:2.6rem; padding-top:1.3rem; border-top:1px solid var(--line);
+  color:var(--muted); font-size:.82rem; line-height:1.6; text-align:center;
+}
+.foot code{ background:var(--accent-tint); color:var(--accent-strong);
+  padding:.05rem .35rem; border-radius:5px; font-size:.9em; }
+
+/* accessibility: focus + reduced motion */
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+@media (prefers-reduced-motion:reduce){ *{ transition:none!important; } }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="hero">
+  <div class="eyebrow">Pinyin for worship slides</div>
+  <h1 class="wordmark">
+    <ruby>歌<rt>gē</rt></ruby><ruby>詞<rt>cí</rt></ruby><span class="latin">Pinyin</span>
+  </h1>
+  <p class="subtitle">Add aligned Hanyu Pinyin beneath every Chinese lyric line.
+  Your background, fonts, and layout stay exactly as they were.</p>
+</div>
+""", unsafe_allow_html=True)
+
+files = st.file_uploader("Upload PPTX", type="pptx", accept_multiple_files=True)
 
 with st.expander("Advanced settings"):
     min_pt = st.number_input(
-        "Only process Chinese lines at or above this font size (pt)",
+        "Minimum Chinese font size to process (pt)",
         value=40, min_value=8, max_value=96,
-        help="Skips titles, footers, and small bottom subtitles. Default 40 processes only the main lyrics.",
+        help="Lines smaller than this are skipped — keeps titles, footers, and "
+             "small subtitles clean. Lower it if your lyrics are smaller than 40pt.",
     )
     pinyin_pt = st.number_input(
         "Pinyin font size (pt)", value=20, min_value=6, max_value=60,
-        help="Absolute font size for the pinyin line. Default 20pt.",
+        help="Absolute size of the pinyin text.",
     )
 
 if files:
     for f in files:
         try:
-            with st.spinner(f"Processing: {f.name}"):
+            with st.spinner(f"Adding pinyin to {f.name}…"):
                 out = add_pinyin(f, min_pt=min_pt, pinyin_pt=pinyin_pt)
             new_name = f.name.rsplit(".", 1)[0] + "_pinyin.pptx"
-            st.success(f"Done: {f.name}")
-            st.download_button(
-                f"⬇️ Download {new_name}",
-                out,
-                file_name=new_name,
-                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                key=f.name,
-            )
+            with st.container(border=True):
+                st.markdown(
+                    f'<div class="result-head">'
+                    f'<span class="check">✓</span>'
+                    f'<span class="fname">{new_name}</span>'
+                    f'<span class="pill">Ready</span></div>',
+                    unsafe_allow_html=True,
+                )
+                st.download_button(
+                    f"Download {new_name}",
+                    out,
+                    file_name=new_name,
+                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    key=f.name,
+                )
         except Exception as e:
-            st.error(f"{f.name} failed: {e}")
+            st.error(f"Couldn't process {f.name}: {e}")
 
-st.divider()
-st.caption("Built-in pronunciation fixes: 祢 → nǐ, 尊主為大 → wéi. Report any other incorrect readings to the administrator.")
+st.markdown("""
+<div class="foot">
+  Built-in reading fixes: <code>祢 → nǐ</code> · <code>尊主為大 → wéi</code>.
+  Spotted another wrong reading? Let the administrator know.
+</div>
+""", unsafe_allow_html=True)
