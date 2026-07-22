@@ -1,6 +1,10 @@
 """Add Hanyu Pinyin below Chinese lyric lines in a PPTX, each syllable
 centered under its character (ruby-style).
 
+Any pre-existing pinyin-only lines (e.g. pinyin sitting ABOVE the lyric
+line in the source deck) are removed first, so pinyin only ever appears
+below the lyrics — and re-running the tool never duplicates lines.
+
 Alignment method: the pinyin line is left-aligned and padded with spaces.
 Positions are computed from font metrics (Arial == Liberation Sans metrics),
 so the result renders identically in PowerPoint, LibreOffice and Keynote —
@@ -10,6 +14,7 @@ Pure function: add_pinyin(src) -> BytesIO. Input is not mutated.
 """
 import copy
 import io
+import os
 import re
 from functools import lru_cache
 
@@ -31,9 +36,20 @@ load_single_dict({ord(c): p for c, p in CHAR_OVERRIDES.items()})
 load_phrases_dict({k: [[s] for s in v] for k, v in PHRASE_OVERRIDES.items()})
 
 CJK_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
+# \u8072\u8abf\u7b26\u865f:\u5224\u65b7\u4e00\u884c\u662f\u5426\u70ba\u65e2\u6709\u62fc\u97f3\u884c\u7684\u5f37\u8a0a\u865f
+PINYIN_TONE_RE = re.compile(r"[\u0101\u00e1\u01ce\u00e0\u0113\u00e9\u011b\u00e8\u012b\u00ed\u01d0\u00ec\u014d\u00f3\u01d2\u00f2\u016b\u00fa\u01d4\u00f9\u01d6\u01d8\u01da\u01dc\u0144\u0148\u01f9\u1e3f]")
+# \u62fc\u97f3\u97f3\u7bc0\u5141\u8a31\u7684\u5b57\u5143(\u5b57\u6bcd\u3001\u8072\u8abf\u6bcd\u97f3\u3001\u00fc\u3001\u9694\u97f3\u865f\u3001\u9023\u5b57\u865f)
+PINYIN_TOKEN_RE = re.compile(
+    r"^[A-Za-z\u00fc\u00dc\u0101\u00e1\u01ce\u00e0\u0113\u00e9\u011b\u00e8\u012b\u00ed\u01d0\u00ec\u014d\u00f3\u01d2\u00f2\u016b\u00fa\u01d4\u00f9\u01d6\u01d8\u01da\u01dc\u0144\u0148\u01f9\u1e3f'\u2019\-\u00b7]+[,,.\u3002!!??::;;]?$"
+)
 A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 EMU_PER_PT = 12700
-SANS_TTF = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+_TTF_CANDIDATES = (
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",  # Streamlit Cloud
+    "/Library/Fonts/Arial.ttf",                                          # macOS
+    "/System/Library/Fonts/Supplemental/Arial.ttf",                      # macOS
+)
+SANS_TTF = next((p for p in _TTF_CANDIDATES if os.path.exists(p)), _TTF_CANDIDATES[0])
 
 
 @lru_cache(maxsize=1)
@@ -64,6 +80,35 @@ SPACE_EM = None  # filled lazily
 
 def para_text(p):
     return "".join(r.text for r in p.runs)
+
+
+def is_pinyin_line(text: str) -> bool:
+    """True if `text` looks like a hanyu-pinyin-only line (an existing
+    pinyin annotation), e.g. "zūn zhǔ wéi dà". Requires at least one tone
+    mark so plain English lyric lines are never touched."""
+    t = text.strip()
+    if not t or CJK_RE.search(t):
+        return False
+    if not PINYIN_TONE_RE.search(t):
+        return False
+    return all(PINYIN_TOKEN_RE.match(tok) for tok in t.split())
+
+
+def strip_pinyin_paragraphs(tf):
+    """Remove every existing pinyin-only paragraph from a text frame
+    (wherever it sits — above or below the lyric line), so pinyin can be
+    re-inserted cleanly below each lyric. Keeps at least one paragraph so
+    the txBody stays schema-valid."""
+    paras = list(tf.paragraphs)
+    removable = [p for p in paras if is_pinyin_line(para_text(p))]
+    if len(removable) == len(paras) and removable:
+        # a pinyin-only text frame: keep one (blanked) paragraph so the
+        # txBody stays schema-valid
+        keep = removable.pop()
+        for r in list(keep._p.findall(_qn("r"))):
+            keep._p.remove(r)
+    for p in removable:
+        p._p.getparent().remove(p._p)
 
 
 def para_font_pt(p):
@@ -156,6 +201,7 @@ def add_pinyin(src, min_pt: float = 40, pinyin_pt: float = 20, latin_font: str =
             if not shape.has_text_frame:
                 continue
             tf = shape.text_frame
+            strip_pinyin_paragraphs(tf)  # 先拿掉既有拼音行(通常在歌詞上面)
             l_ins = tf.margin_left if tf.margin_left is not None else Emu(91440)
             r_ins = tf.margin_right if tf.margin_right is not None else Emu(91440)
             area_w_pt = (int(shape.width) - int(l_ins) - int(r_ins)) / EMU_PER_PT
