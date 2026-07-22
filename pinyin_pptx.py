@@ -146,9 +146,10 @@ def _qn(tag):
     return f"{{{A_NS}}}{tag}"
 
 
-def add_pinyin(src, min_pt: float = 40, ratio: float = 0.45, latin_font: str = "Arial"):
+def add_pinyin(src, min_pt: float = 40, pinyin_pt: float = 20, latin_font: str = "Arial"):
     """Insert a syllable-aligned pinyin line below every Chinese paragraph
-    whose font size >= min_pt. Returns io.BytesIO of the new .pptx."""
+    whose font size >= min_pt. pinyin_pt is the absolute pinyin font size in
+    points. Returns io.BytesIO of the new .pptx."""
     prs = Presentation(src)
     for slide in prs.slides:
         for shape in slide.shapes:
@@ -167,7 +168,7 @@ def add_pinyin(src, min_pt: float = 40, ratio: float = 0.45, latin_font: str = "
                 if size is None or size < min_pt:
                     continue
 
-                py_pt = size * ratio
+                py_pt = pinyin_pt
                 cells = char_cells(text, size)
                 py_line = build_padded_pinyin(cells, area_w_pt, py_pt)
 
