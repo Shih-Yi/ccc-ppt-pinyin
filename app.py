@@ -3,15 +3,17 @@ import io
 import streamlit as st
 import streamlit.components.v1 as components
 
-from pinyin_pptx import add_pinyin
+from pinyin_pptx import PINYIN_VERSION, add_pinyin
 
 MIME_PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
 
 @st.cache_data(show_spinner=False, max_entries=20)
-def process_pptx(data: bytes, min_pt: float, pinyin_pt: float) -> bytes:
-    """Cached: identical file + settings reuse the previous result,
-    so UI reruns don't re-scan the deck."""
+def process_pptx(data: bytes, min_pt: float, pinyin_pt: float,
+                 version: int = PINYIN_VERSION) -> bytes:
+    """Cached: identical file + settings reuse the previous result, so UI
+    reruns don't re-scan the deck. `version` keys the cache to the core
+    logic, so releases invalidate stale results."""
     return add_pinyin(io.BytesIO(data), min_pt=min_pt, pinyin_pt=pinyin_pt).getvalue()
 
 st.set_page_config(page_title="詩歌拼音 Shīgē Pinyin", page_icon="🎵", layout="centered")

@@ -42,6 +42,9 @@ PINYIN_TONE_RE = re.compile(r"[\u0101\u00e1\u01ce\u00e0\u0113\u00e9\u011b\u00e8\
 PINYIN_TOKEN_RE = re.compile(
     r"^[A-Za-z\u00fc\u00dc\u0101\u00e1\u01ce\u00e0\u0113\u00e9\u011b\u00e8\u012b\u00ed\u01d0\u00ec\u014d\u00f3\u01d2\u00f2\u016b\u00fa\u01d4\u00f9\u01d6\u01d8\u01da\u01dc\u0144\u0148\u01f9\u1e3f'\u2019\-\u00b7]+[,,.\u3002!!??::;;]?$"
 )
+# bump when output logic changes, so cached results upstream are invalidated
+PINYIN_VERSION = 2
+
 A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 EMU_PER_PT = 12700
 _TTF_CANDIDATES = (
