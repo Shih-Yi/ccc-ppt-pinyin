@@ -2,3 +2,4 @@ streamlit
 python-pptx
 pypinyin
 fonttools
+requests

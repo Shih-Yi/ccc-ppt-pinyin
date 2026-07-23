@@ -1,9 +1,19 @@
+import hashlib
 import io
+import time
+import traceback
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import streamlit as st
 import streamlit.components.v1 as components
 
+from notifier import notify
 from pinyin_pptx import PINYIN_VERSION, add_pinyin
+
+
+def now_str() -> str:
+    return datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d %H:%M:%S")
 
 MIME_PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
@@ -216,12 +226,31 @@ with st.expander("Advanced settings", expanded=True):
         help="Absolute size of the pinyin text.",
     )
 
+if "notified" not in st.session_state:
+    st.session_state.notified = set()
+
 if files:
     for f in files:
+        raw = f.getvalue()
         try:
+            t0 = time.perf_counter()
             with st.spinner(f"Adding pinyin to {f.name}…"):
-                data = process_pptx(f.getvalue(), min_pt, pinyin_pt)
+                data = process_pptx(raw, min_pt, pinyin_pt)
+            elapsed = time.perf_counter() - t0
             new_name = f.name.rsplit(".", 1)[0] + "_pinyin.pptx"
+
+            # notify the owner once per new result in this session
+            digest = hashlib.md5(raw + f"{min_pt}|{pinyin_pt}".encode()).hexdigest()
+            if digest not in st.session_state.notified:
+                st.session_state.notified.add(digest)
+                notify(
+                    "✅ 詩歌拼音 處理成功\n"
+                    f"🕐 {now_str()}\n"
+                    f"📄 {f.name}\n"
+                    f"📦 輸入 {len(raw) / 1e6:.2f} MB → 輸出 {len(data) / 1e6:.2f} MB\n"
+                    f"⚙️ min_pt={min_pt}, pinyin_pt={pinyin_pt}\n"
+                    f"⏱️ {elapsed:.2f}s"
+                )
             with st.container(border=True):
                 st.markdown(
                     f'<div class="result-head">'
@@ -248,6 +277,15 @@ if files:
             </script>""", height=0)
         except Exception as e:
             st.error(f"Couldn't process {f.name}: {e}")
+            tb_tail = "".join(traceback.format_exception(e)).strip().splitlines()[-6:]
+            notify(
+                "❌ 詩歌拼音 處理失敗\n"
+                f"🕐 {now_str()}\n"
+                f"📄 {f.name} ({len(raw) / 1e6:.2f} MB)\n"
+                f"⚙️ min_pt={min_pt}, pinyin_pt={pinyin_pt}\n"
+                f"💥 {type(e).__name__}: {e}\n"
+                "─ traceback ─\n" + "\n".join(tb_tail)
+            )
 
 st.markdown("""
 <div class="foot">
