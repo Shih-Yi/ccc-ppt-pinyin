@@ -242,6 +242,7 @@ def add_pinyin(src, min_pt: float = 40, pinyin_pt: float = 20, latin_font: str =
                     rPr = run.makeelement(_qn("rPr"), {})
                     run.insert(0, rPr)
                 rPr.set("sz", str(int(py_pt * 100)))
+                rPr.set("i", "1")  # 拼音用斜體
                 for tag in ("latin", "ea", "cs"):
                     el = rPr.find(_qn(tag))
                     if el is None:
