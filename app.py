@@ -17,11 +17,15 @@ st.markdown(r"""
 #MainMenu, header[data-testid="stHeader"], footer, [data-testid="stToolbar"]{display:none!important;}
 
 .stApp{ background:var(--paper); }
-.block-container{ max-width:660px; padding-top:3.2rem; padding-bottom:4rem; }
+.block-container{
+  max-width:660px; margin-left:auto!important; margin-right:auto!important;
+  padding-top:3.2rem; padding-bottom:4rem;
+}
 html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; color:var(--ink); }
 
 /* ---------- hero ---------- */
 .hero{ text-align:center; margin-bottom:2.4rem; }
+.hero *, .hero p, .hero h1{ text-align:center!important; }
 .eyebrow{
   font-size:.72rem; letter-spacing:.18em; text-transform:uppercase;
   color:var(--accent-strong); font-weight:600; margin-bottom:1rem;
@@ -29,7 +33,8 @@ html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; color:var(
 .wordmark{
   font-family:'Sora',sans-serif; font-weight:700; font-size:2.9rem;
   line-height:1.15; letter-spacing:-.01em; margin:0; color:var(--ink)!important;
-  display:flex; align-items:flex-start; justify-content:center; gap:.12em;
+  display:flex; align-items:flex-start; justify-content:center!important; gap:.12em;
+  width:100%;
 }
 /* character + pinyin stacked below — mirrors the product output */
 .wordmark .zi{
@@ -42,8 +47,8 @@ html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; color:var(
 }
 .wordmark .latin{ margin-left:.18em; line-height:1.15; color:var(--ink); }
 .subtitle{
-  margin:1.1rem auto 0; max-width:34rem; color:var(--muted);
-  font-size:1.02rem; line-height:1.6; text-align:center;
+  margin:1.1rem auto 0!important; max-width:34rem; color:var(--muted);
+  font-size:1.02rem; line-height:1.6; text-align:center!important;
 }
 
 /* ---------- file uploader → drop zone ---------- */
