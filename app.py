@@ -1,6 +1,18 @@
+import io
+
 import streamlit as st
+import streamlit.components.v1 as components
 
 from pinyin_pptx import add_pinyin
+
+MIME_PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+
+@st.cache_data(show_spinner=False, max_entries=20)
+def process_pptx(data: bytes, min_pt: float, pinyin_pt: float) -> bytes:
+    """Cached: identical file + settings reuse the previous result,
+    so UI reruns don't re-scan the deck."""
+    return add_pinyin(io.BytesIO(data), min_pt=min_pt, pinyin_pt=pinyin_pt).getvalue()
 
 st.set_page_config(page_title="詩歌拼音 Shīgē Pinyin", page_icon="🎵", layout="centered")
 
@@ -206,7 +218,7 @@ if files:
     for f in files:
         try:
             with st.spinner(f"Adding pinyin to {f.name}…"):
-                out = add_pinyin(f, min_pt=min_pt, pinyin_pt=pinyin_pt)
+                data = process_pptx(f.getvalue(), min_pt, pinyin_pt)
             new_name = f.name.rsplit(".", 1)[0] + "_pinyin.pptx"
             with st.container(border=True):
                 st.markdown(
@@ -218,11 +230,20 @@ if files:
                 )
                 st.download_button(
                     f"Download {new_name}",
-                    out,
+                    data,
                     file_name=new_name,
-                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    mime=MIME_PPTX,
                     key=f.name,
                 )
+            # done: notify and scroll to the download button
+            st.toast(f"✅ Pinyin added — {new_name} is ready", icon="🎵")
+            components.html("""
+            <script>
+              const btns = window.parent.document
+                  .querySelectorAll('[data-testid="stDownloadButton"]');
+              if (btns.length) btns[btns.length - 1]
+                  .scrollIntoView({behavior: 'smooth', block: 'center'});
+            </script>""", height=0)
         except Exception as e:
             st.error(f"Couldn't process {f.name}: {e}")
 
