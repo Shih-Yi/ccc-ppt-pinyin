@@ -39,13 +39,19 @@ html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; color:var(
 /* character + pinyin stacked below — mirrors the product output */
 .wordmark .zi{
   display:inline-flex; flex-direction:column; align-items:center; font-weight:700;
-  color:var(--ink);
+}
+/* brand gradient on the big glyphs — echoes the download button */
+.wordmark .zi, .wordmark .latin{
+  background:linear-gradient(160deg,#12A38B 0%,#0A7365 70%);
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent; color:var(--accent-strong);
 }
 .wordmark .py{
   font-family:'Inter',sans-serif; font-size:.32em; font-weight:600;
-  color:var(--accent); letter-spacing:.02em; margin-top:.18em;
+  color:var(--accent); -webkit-text-fill-color:var(--accent);
+  letter-spacing:.02em; margin-top:.18em;
 }
-.wordmark .latin{ margin-left:.18em; line-height:1.15; color:var(--ink); }
+.wordmark .latin{ margin-left:.18em; line-height:1.15; }
 .subtitle{
   margin:1.1rem auto 0!important; max-width:34rem; color:var(--muted);
   font-size:1.02rem; line-height:1.6; text-align:center!important;
@@ -94,9 +100,9 @@ html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; color:var(
 /* ---------- advanced settings expander ---------- */
 [data-testid="stExpander"]{ border:none!important; margin-top:1rem; }
 [data-testid="stExpander"] details{
-  background:transparent; border:1px solid var(--line)!important; border-radius:12px;
+  background:var(--accent-tint); border:1px solid #CFE7E1!important; border-radius:12px;
 }
-[data-testid="stExpander"] summary{ font-weight:500; color:var(--muted); }
+[data-testid="stExpander"] summary{ font-weight:500; color:var(--accent-strong); }
 [data-testid="stExpander"] summary:hover{ color:var(--accent-strong); }
 
 /* number inputs */
@@ -212,7 +218,6 @@ if files:
 
 st.markdown("""
 <div class="foot">
-  Built-in reading fixes: <code>祢 → nǐ</code> · <code>尊主為大 → wéi</code>.
-  Spotted another wrong reading? Let the administrator know.
+  Spotted a wrong reading? Let the administrator know.
 </div>
 """, unsafe_allow_html=True)

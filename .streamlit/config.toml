@@ -1,0 +1,3 @@
+[client]
+# Hide developer items from the toolbar for a cleaner product surface
+toolbarMode = "viewer"
