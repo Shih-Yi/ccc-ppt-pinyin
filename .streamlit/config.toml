@@ -1,3 +1,13 @@
 [client]
 # Hide developer items from the toolbar for a cleaner product surface
 toolbarMode = "viewer"
+
+[theme]
+# Lock the app to a light theme matching the brand palette,
+# regardless of the visitor's system dark mode
+base = "light"
+primaryColor = "#0C8A78"
+backgroundColor = "#FBFAF7"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#17161C"
+font = "sans serif"

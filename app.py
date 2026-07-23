@@ -15,6 +15,10 @@ st.markdown(r"""
 
 /* hide Streamlit chrome for a cleaner product surface */
 #MainMenu, header[data-testid="stHeader"], footer, [data-testid="stToolbar"]{display:none!important;}
+/* hide Community Cloud creator avatar + Streamlit badge (bottom-right) */
+[class*="viewerBadge"], [class*="profileContainer"], [class*="profilePreview"],
+[data-testid="appCreatorAvatar"], a[href*="streamlit.io/cloud"],
+a[href*="share.streamlit.io/user"]{ display:none!important; }
 
 .stApp{ background:var(--paper); }
 .block-container{
@@ -52,6 +56,10 @@ html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; color:var(
   letter-spacing:.02em; margin-top:.18em;
 }
 .wordmark .latin{ margin-left:.18em; line-height:1.15; }
+/* Streamlit appends a hidden anchor-link element inside headings —
+   it takes up flex space after "Pinyin" and skews centering */
+.wordmark a, .wordmark svg,
+.wordmark [data-testid="stHeaderActionElements"]{ display:none!important; }
 .subtitle{
   margin:1.1rem auto 0!important; max-width:34rem; color:var(--muted);
   font-size:1.02rem; line-height:1.6; text-align:center!important;
@@ -187,6 +195,8 @@ with st.expander("Advanced settings", expanded=True):
         help="Lines smaller than this are skipped — keeps titles, footers, and "
              "small subtitles clean. Lower it if your lyrics are smaller than 40pt.",
     )
+    st.caption(f"Only Chinese text {min_pt} pt or larger gets pinyin — "
+               "smaller text like titles and footers is left untouched.")
     pinyin_pt = st.number_input(
         "Pinyin font size (pt)", value=20, min_value=6, max_value=60,
         help="Absolute size of the pinyin text.",
