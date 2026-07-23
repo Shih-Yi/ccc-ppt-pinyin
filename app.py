@@ -28,21 +28,22 @@ html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; color:var(
 }
 .wordmark{
   font-family:'Sora',sans-serif; font-weight:700; font-size:2.9rem;
-  line-height:1.15; letter-spacing:-.01em; margin:0; color:var(--ink);
+  line-height:1.15; letter-spacing:-.01em; margin:0; color:var(--ink)!important;
   display:flex; align-items:flex-start; justify-content:center; gap:.12em;
 }
 /* character + pinyin stacked below — mirrors the product output */
 .wordmark .zi{
   display:inline-flex; flex-direction:column; align-items:center; font-weight:700;
+  color:var(--ink);
 }
 .wordmark .py{
   font-family:'Inter',sans-serif; font-size:.32em; font-weight:600;
   color:var(--accent); letter-spacing:.02em; margin-top:.18em;
 }
-.wordmark .latin{ margin-left:.18em; line-height:1.15; }
+.wordmark .latin{ margin-left:.18em; line-height:1.15; color:var(--ink); }
 .subtitle{
   margin:1.1rem auto 0; max-width:34rem; color:var(--muted);
-  font-size:1.02rem; line-height:1.6;
+  font-size:1.02rem; line-height:1.6; text-align:center;
 }
 
 /* ---------- file uploader → drop zone ---------- */
@@ -168,7 +169,7 @@ st.markdown("""
 
 files = st.file_uploader("Upload PPTX", type="pptx", accept_multiple_files=True)
 
-with st.expander("Advanced settings"):
+with st.expander("Advanced settings", expanded=True):
     min_pt = st.number_input(
         "Minimum Chinese font size to process (pt)",
         value=40, min_value=8, max_value=96,
