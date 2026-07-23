@@ -2,7 +2,7 @@ import streamlit as st
 
 from pinyin_pptx import add_pinyin
 
-st.set_page_config(page_title="Lyrics Pinyin", page_icon="🎵", layout="centered")
+st.set_page_config(page_title="詩歌拼音 Shīgē Pinyin", page_icon="🎵", layout="centered")
 
 st.markdown(r"""
 <style>
@@ -29,14 +29,17 @@ html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; color:var(
 .wordmark{
   font-family:'Sora',sans-serif; font-weight:700; font-size:2.9rem;
   line-height:1.15; letter-spacing:-.01em; margin:0; color:var(--ink);
-  display:flex; align-items:baseline; justify-content:center; gap:.12em;
+  display:flex; align-items:flex-start; justify-content:center; gap:.12em;
 }
-.wordmark ruby{ font-weight:700; }
-.wordmark rt{
+/* character + pinyin stacked below — mirrors the product output */
+.wordmark .zi{
+  display:inline-flex; flex-direction:column; align-items:center; font-weight:700;
+}
+.wordmark .py{
   font-family:'Inter',sans-serif; font-size:.32em; font-weight:600;
-  color:var(--accent); letter-spacing:.02em; margin-bottom:.15em;
+  color:var(--accent); letter-spacing:.02em; margin-top:.18em;
 }
-.wordmark .latin{ margin-left:.18em; }
+.wordmark .latin{ margin-left:.18em; line-height:1.15; }
 .subtitle{
   margin:1.1rem auto 0; max-width:34rem; color:var(--muted);
   font-size:1.02rem; line-height:1.6;
@@ -155,10 +158,11 @@ st.markdown("""
 <div class="hero">
   <div class="eyebrow">Pinyin for worship slides</div>
   <h1 class="wordmark">
-    <ruby>歌<rt>gē</rt></ruby><ruby>詞<rt>cí</rt></ruby><span class="latin">Pinyin</span>
+    <span class="zi">詩<span class="py">shī</span></span>
+    <span class="zi">歌<span class="py">gē</span></span>
+    <span class="latin">Pinyin</span>
   </h1>
-  <p class="subtitle">Add aligned Hanyu Pinyin beneath every Chinese lyric line.
-  Your background, fonts, and layout stay exactly as they were.</p>
+  <p class="subtitle">Add pinyin below your Chinese lyrics.</p>
 </div>
 """, unsafe_allow_html=True)
 
