@@ -192,6 +192,27 @@ class TestInheritedFontSize:
         assert texts == ["尊主為大"]
 
 
+class TestTrailingWhitespace:
+    """A trailing space must not shift the pinyin row: renderers drop it when
+    centering, so counting it would offset every syllable to the left."""
+
+    def test_trailing_space_does_not_shift_pinyin(self):
+        clean = all_para_texts(add_pinyin(make_pptx(["尊主為大"])))[1]
+        spaced = all_para_texts(add_pinyin(make_pptx(["尊主為大 "])))[1]
+        assert spaced == clean
+
+    def test_trailing_ideographic_space_does_not_shift_pinyin(self):
+        clean = all_para_texts(add_pinyin(make_pptx(["尊主為大"])))[1]
+        spaced = all_para_texts(add_pinyin(make_pptx(["尊主為大　"])))[1]
+        assert spaced == clean
+
+    def test_leading_space_still_counts(self):
+        """Leading whitespace is drawn, so it must still move the pinyin."""
+        clean = all_para_texts(add_pinyin(make_pptx(["尊主為大"])))[1]
+        led = all_para_texts(add_pinyin(make_pptx([" 尊主為大"])))[1]
+        assert len(led) - len(led.lstrip()) > len(clean) - len(clean.lstrip())
+
+
 class TestGroupedShapes:
     """Text boxes nested inside a group must be processed too — a group has
     no text frame of its own, so a top-level-only loop skips everything."""

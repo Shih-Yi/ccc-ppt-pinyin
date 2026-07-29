@@ -125,7 +125,13 @@ def para_font_pt(p, shape=None, slide=None, prs=None):
 
 
 def char_cells(text, em_pt):
-    """Per-character layout cells: (width_pt, syllable_or_None)."""
+    """Per-character layout cells: (width_pt, syllable_or_None).
+
+    Trailing whitespace is dropped: renderers ignore it when centering a
+    line, so counting it would make the line look wider than it draws and
+    shift the whole pinyin row left by half the trailing width.
+    """
+    text = text.rstrip()
     # errors=list -> every non-han char becomes its own item, so the
     # result maps 1:1 onto the characters of `text`
     syls = pinyin(text, style=Style.TONE, errors=lambda chunk: list(chunk))

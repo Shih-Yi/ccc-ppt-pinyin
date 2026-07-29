@@ -10,6 +10,7 @@
 - **字級沿繼承鏈判定**:PPTX 的字級不一定寫在 run 上。Google Slides 之類的工具匯出時,run 是空的(`<a:rPr lang="en-US"/>`),字級放在圖形的 `<a:lstStyle>` 裡。`font_size.resolve_font_pt` 會依 run → 段落 defRPr → 圖形 lstStyle → 版面配置/母片 placeholder → 母片 txStyles → presentation defaultTextStyle 逐層往上找。只看 run 會把整份檔判成「字級不明」而全部略過(下載回來跟原檔一樣)。
 - **拼音位置**:放在中文行的**正下方**,每個音節對齊到對應中文字的中心(類似 ruby 注音)。
 - **對齊方式**:用字型度量計算位置、以空格墊出來,**不用 tab stops**(LibreOffice 等播放軟體會忽略 tab stop)。因為 Arial 與 Liberation Sans 字寬相同,PowerPoint 與 LibreOffice 渲染結果一致。
+- **行尾空白不計入寬度**:算「置中的中文行從哪裡開始」時會先 `rstrip()`。播放軟體排版時會丟掉行尾空白,若照算會以為整行比實際寬,整條拼音就往左偏(半個空白的寬度;48pt 中文行尾一個半形空格 = 左偏 12pt)。行首空白是會畫出來的,照算。
 - **拼音字級**:絕對 pt 值(預設 20pt),在 Advanced settings 可調。
 - **群組圖形會遞迴進去**:`slide.shapes` 只列出最上層物件,群組(`<p:grpSp>`)本身沒有文字框,直接迴圈會把裡面的歌詞整個漏掉。`shape_walk.iter_text_shapes` 會遞迴走進群組;群組有自己的座標系統,子物件寬度會依 `ext/chExt` 換算回投影片單位,拼音置中才會準。
 - **純函式設計**:`add_pinyin(pptx) → pptx`,不改動輸入檔,同一份檔可重複處理。
