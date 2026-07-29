@@ -23,6 +23,9 @@ from pptx import Presentation
 from pptx.util import Emu
 from pypinyin import pinyin, Style, load_single_dict, load_phrases_dict
 
+from font_size import resolve_font_pt
+from shape_walk import iter_text_shapes
+
 # 教會歌詞常見讀音修正(可自行擴充)
 CHAR_OVERRIDES = {
     "祢": "nǐ",   # 對神的第二人稱,字典音為 mí(姓氏)
@@ -43,7 +46,7 @@ PINYIN_TOKEN_RE = re.compile(
     r"^[A-Za-z\u00fc\u00dc\u0101\u00e1\u01ce\u00e0\u0113\u00e9\u011b\u00e8\u012b\u00ed\u01d0\u00ec\u014d\u00f3\u01d2\u00f2\u016b\u00fa\u01d4\u00f9\u01d6\u01d8\u01da\u01dc\u0144\u0148\u01f9\u1e3f'\u2019\-\u00b7]+[,,.\u3002!!??::;;]?$"
 )
 # bump when output logic changes, so cached results upstream are invalidated
-PINYIN_VERSION = 2
+PINYIN_VERSION = 3
 
 A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 EMU_PER_PT = 12700
@@ -114,11 +117,11 @@ def strip_pinyin_paragraphs(tf):
         p._p.getparent().remove(p._p)
 
 
-def para_font_pt(p):
-    for r in p.runs:
-        if r.font.size is not None:
-            return r.font.size.pt
-    return None
+def para_font_pt(p, shape=None, slide=None, prs=None):
+    """Effective font size of a paragraph in pt. Runs frequently carry no
+    explicit size (Google Slides exports never do), so the whole inheritance
+    chain is consulted — see font_size.resolve_font_pt."""
+    return resolve_font_pt(p, shape, slide, prs)
 
 
 def char_cells(text, em_pt):
@@ -194,66 +197,75 @@ def _qn(tag):
     return f"{{{A_NS}}}{tag}"
 
 
+def _pinyin_paragraph(src_p, py_line, py_pt, latin_font):
+    """A copy of `src_p` carrying the pinyin line: left-aligned, unindented,
+    a single run at py_pt in italic. Everything else (colour, shadow, effects)
+    is inherited from the lyric paragraph it mirrors."""
+    new_p = copy.deepcopy(src_p)
+
+    pPr = new_p.find(_qn("pPr"))
+    if pPr is None:
+        pPr = new_p.makeelement(_qn("pPr"), {})
+        new_p.insert(0, pPr)
+    pPr.set("algn", "l")
+    pPr.set("marL", "0")
+    pPr.set("indent", "0")
+
+    runs = new_p.findall(_qn("r"))
+    for extra in runs[1:]:
+        new_p.remove(extra)
+    run = runs[0]
+    t = run.find(_qn("t"))
+    t.text = py_line
+    t.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+
+    rPr = run.find(_qn("rPr"))
+    if rPr is None:
+        rPr = run.makeelement(_qn("rPr"), {})
+        run.insert(0, rPr)
+    rPr.set("sz", str(int(py_pt * 100)))
+    rPr.set("i", "1")  # 拼音用斜體
+    for tag in ("latin", "ea", "cs"):
+        el = rPr.find(_qn(tag))
+        if el is None:
+            el = rPr.makeelement(_qn(tag), {})
+            rPr.append(el)
+        el.set("typeface", latin_font)
+    return new_p
+
+
+def _annotate_shape(shape, width_emu, slide, prs, min_pt, pinyin_pt, latin_font):
+    """Add a pinyin line below every qualifying Chinese paragraph in `shape`."""
+    tf = shape.text_frame
+    strip_pinyin_paragraphs(tf)  # 先拿掉既有拼音行(通常在歌詞上面)
+    l_ins = tf.margin_left if tf.margin_left is not None else Emu(91440)
+    r_ins = tf.margin_right if tf.margin_right is not None else Emu(91440)
+    area_w_pt = (width_emu - int(l_ins) - int(r_ins)) / EMU_PER_PT
+
+    for p in list(tf.paragraphs):
+        text = para_text(p)
+        if not CJK_RE.search(text):
+            continue
+        size = para_font_pt(p, shape, slide, prs)
+        if size is None or size < min_pt:
+            continue
+
+        cells = char_cells(text, size)
+        py_line = build_padded_pinyin(cells, area_w_pt, pinyin_pt)
+        p._p.addnext(_pinyin_paragraph(p._p, py_line, pinyin_pt, latin_font))
+
+
 def add_pinyin(src, min_pt: float = 40, pinyin_pt: float = 20, latin_font: str = "Arial"):
     """Insert a syllable-aligned pinyin line below every Chinese paragraph
     whose font size >= min_pt. pinyin_pt is the absolute pinyin font size in
     points. Returns io.BytesIO of the new .pptx."""
     prs = Presentation(src)
     for slide in prs.slides:
-        for shape in slide.shapes:
-            if not shape.has_text_frame:
-                continue
-            tf = shape.text_frame
-            strip_pinyin_paragraphs(tf)  # 先拿掉既有拼音行(通常在歌詞上面)
-            l_ins = tf.margin_left if tf.margin_left is not None else Emu(91440)
-            r_ins = tf.margin_right if tf.margin_right is not None else Emu(91440)
-            area_w_pt = (int(shape.width) - int(l_ins) - int(r_ins)) / EMU_PER_PT
-
-            for p in list(tf.paragraphs):
-                text = para_text(p)
-                if not CJK_RE.search(text):
-                    continue
-                size = para_font_pt(p)
-                if size is None or size < min_pt:
-                    continue
-
-                py_pt = pinyin_pt
-                cells = char_cells(text, size)
-                py_line = build_padded_pinyin(cells, area_w_pt, py_pt)
-
-                src_p = p._p
-                new_p = copy.deepcopy(src_p)
-
-                pPr = new_p.find(_qn("pPr"))
-                if pPr is None:
-                    pPr = new_p.makeelement(_qn("pPr"), {})
-                    new_p.insert(0, pPr)
-                pPr.set("algn", "l")
-                pPr.set("marL", "0")
-                pPr.set("indent", "0")
-
-                runs = new_p.findall(_qn("r"))
-                for extra in runs[1:]:
-                    new_p.remove(extra)
-                run = runs[0]
-                t = run.find(_qn("t"))
-                t.text = py_line
-                t.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
-
-                rPr = run.find(_qn("rPr"))
-                if rPr is None:
-                    rPr = run.makeelement(_qn("rPr"), {})
-                    run.insert(0, rPr)
-                rPr.set("sz", str(int(py_pt * 100)))
-                rPr.set("i", "1")  # 拼音用斜體
-                for tag in ("latin", "ea", "cs"):
-                    el = rPr.find(_qn(tag))
-                    if el is None:
-                        el = rPr.makeelement(_qn(tag), {})
-                        rPr.append(el)
-                    el.set("typeface", latin_font)
-
-                src_p.addnext(new_p)  # 拼音在中文行的正下方
+        for shape, width_emu in iter_text_shapes(slide):
+            if width_emu is None:  # no width stated anywhere: assume full slide
+                width_emu = int(prs.slide_width)
+            _annotate_shape(shape, width_emu, slide, prs,
+                            min_pt, pinyin_pt, latin_font)
 
     out = io.BytesIO()
     prs.save(out)
