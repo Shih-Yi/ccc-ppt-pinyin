@@ -47,11 +47,11 @@ PINYIN_TOKEN_RE = re.compile(
     r"^[A-Za-z\u00fc\u00dc\u0101\u00e1\u01ce\u00e0\u0113\u00e9\u011b\u00e8\u012b\u00ed\u01d0\u00ec\u014d\u00f3\u01d2\u00f2\u016b\u00fa\u01d4\u00f9\u01d6\u01d8\u01da\u01dc\u0144\u0148\u01f9\u1e3f'\u2019\-\u00b7]+[,,.\u3002!!??::;;]?$"
 )
 # bump when output logic changes, so cached results upstream are invalidated
-PINYIN_VERSION = 10
+PINYIN_VERSION = 11
 # 中文歌詞與它下方拼音的間距,寫在「中文歌詞段落」自己的行高上
-# (佔中文字級的百分比)。48pt 歌詞 + 20pt 拼音實測:90 是貼合又不相碰的下限,
+# (佔中文字級的百分比)。48pt 歌詞 + 20pt 拼音實測:相碰點約在 75%,
 # 70 以下兩行就疊在一起。填 0 則完全不寫、維持原檔自己的行距
-DEFAULT_GAP_PCT = 90
+DEFAULT_GAP_PCT = 95
 
 A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 EMU_PER_PT = 12700
@@ -318,8 +318,8 @@ def add_pinyin(src, min_pt: float = 40, pinyin_pt: float = 20,
     points. gap_pct sets each lyric line's height, as a percentage of the
     lyric font size, which is the distance from that line down to its pinyin —
     lower values tuck the pinyin closer, until the two rows collide - for 48pt
-    lyrics with 20pt pinyin the default of 90 is about as tight as it goes. 0
-    leaves the deck's own line spacing untouched instead. No other gap is affected. Returns io.BytesIO of the new .pptx."""
+    lyrics with 20pt pinyin that happens below about 75%. 0 leaves the deck's
+    own line spacing untouched instead. No other gap is affected. Returns io.BytesIO of the new .pptx."""
     prs = Presentation(src)
     for slide in prs.slides:
         for shape, width_emu in iter_text_shapes(slide):
