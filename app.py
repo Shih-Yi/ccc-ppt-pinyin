@@ -230,9 +230,9 @@ with st.expander("Advanced settings", expanded=True):
         "Gap between lyric and its pinyin (%)",
         value=DEFAULT_GAP_PCT, min_value=0, max_value=200, step=5,
         help="Distance from each Chinese line down to the pinyin directly "
-             "below it, as a percentage of the Chinese font size. The default "
-             "matches the spacing these song files already use — lower it step "
-             "by step to tuck the pinyin closer. Set it to 0 to leave the "
+             "below it, as a percentage of the Chinese font size. Lower is "
+             "tighter, until the two rows collide — with 48pt lyrics and 20pt "
+             "pinyin that happens below about 75%. Set it to 0 to leave the "
              "original file's line spacing untouched. No other gap is touched: "
              "lyric-to-lyric and the English lines stay put.",
     )
@@ -240,7 +240,7 @@ with st.expander("Advanced settings", expanded=True):
         "Keeping the original spacing from your file."
         if not gap_pct else
         f"{gap_pct}% of the Chinese font size between each lyric and its own "
-        "pinyin — lower is tighter; raise it if the two rows touch."
+        "pinyin — lower is tighter; raise it if the two rows overlap."
     )
 
 if "notified" not in st.session_state:
