@@ -5,7 +5,7 @@ import pytest
 from pptx import Presentation
 from pptx.util import Inches, Pt
 
-from pinyin_pptx import DEFAULT_LINE_SPACING_PCT, add_pinyin, is_pinyin_line
+from pinyin_pptx import CJK_RE, DEFAULT_GAP_PCT, add_pinyin, is_pinyin_line
 
 
 def make_pptx(lines, size_pt=40):
@@ -213,8 +213,8 @@ class TestTrailingWhitespace:
         assert len(led) - len(led.lstrip()) > len(clean) - len(clean.lstrip())
 
 
-def pinyin_paragraph_elements(buf):
-    """The <a:p> element of every pinyin line in the deck."""
+def _paragraph_elements(buf, keep):
+    """The <a:p> element of every paragraph whose text satisfies `keep`."""
     prs = Presentation(buf)
     out = []
     for slide in prs.slides:
@@ -223,27 +223,55 @@ def pinyin_paragraph_elements(buf):
                 continue
             for para in shape.text_frame.paragraphs:
                 text = "".join(r.text for r in para.runs)
-                if is_pinyin_line(text):
+                if keep(text):
                     out.append(para._p)
     return out
 
 
-class TestLineSpacing:
-    """The pinyin row's own line height is what sets the gap to the lyric
-    line above it, so it must be written explicitly and be tunable."""
+def pinyin_paragraph_elements(buf):
+    """The <a:p> element of every pinyin line in the deck."""
+    return _paragraph_elements(buf, is_pinyin_line)
 
-    def test_line_spacing_defaults_to_the_tightened_value(self):
-        p = pinyin_paragraph_elements(add_pinyin(make_pptx(["尊主為大"])))[0]
-        spc_pct = p.find(_qn("pPr")).find(_qn("lnSpc")).find(_qn("spcPct"))
-        assert spc_pct.get("val") == str(DEFAULT_LINE_SPACING_PCT * 1000)
 
-    def test_line_spacing_is_configurable(self):
+def lyric_paragraph_elements(buf):
+    """The <a:p> element of every Chinese lyric line in the deck."""
+    return _paragraph_elements(buf, lambda t: bool(CJK_RE.search(t)))
+
+
+def _line_height(p):
+    """The paragraph's explicit line height in per-mille, or None."""
+    pPr = p.find(_qn("pPr"))
+    lnSpc = None if pPr is None else pPr.find(_qn("lnSpc"))
+    return None if lnSpc is None else lnSpc.find(_qn("spcPct")).get("val")
+
+
+class TestLyricToPinyinGap:
+    """A paragraph's line height sets the distance down to the line that
+    FOLLOWS it. So the lyric-to-pinyin gap lives on the lyric paragraph; put
+    it on the pinyin paragraph instead and it squeezes whatever comes after
+    the pinyin — the next lyric line, or the English line — which must not
+    move."""
+
+    def test_the_gap_is_written_on_the_lyric_paragraph(self):
+        p = lyric_paragraph_elements(
+            add_pinyin(make_pptx(["尊主為大"]), gap_pct=45))[0]
+        assert _line_height(p) == "45000"
+
+    def test_the_pinyin_paragraph_never_gets_its_own_line_height(self):
+        """Its line height is the gap BELOW the pinyin, which stays as the
+        deck had it."""
         p = pinyin_paragraph_elements(
-            add_pinyin(make_pptx(["尊主為大"]), line_spacing_pct=45))[0]
-        spc_pct = p.find(_qn("pPr")).find(_qn("lnSpc")).find(_qn("spcPct"))
-        assert spc_pct.get("val") == "45000"
+            add_pinyin(make_pptx(["尊主為大"]), gap_pct=45))[0]
+        assert _line_height(p) is None
+
+    def test_default_leaves_the_decks_own_line_spacing_alone(self):
+        assert DEFAULT_GAP_PCT == 0
+        out = add_pinyin(make_pptx(["尊主為大"]))
+        assert _line_height(lyric_paragraph_elements(out)[0]) is None
+        assert _line_height(pinyin_paragraph_elements(out)[0]) is None
 
     def test_no_space_is_added_before_the_pinyin_line(self):
+        """Inherited space-before would sit inside the lyric-to-pinyin gap."""
         p = pinyin_paragraph_elements(add_pinyin(make_pptx(["尊主為大"])))[0]
         spc_bef = p.find(_qn("pPr")).find(_qn("spcBef"))
         assert spc_bef.find(_qn("spcPts")).get("val") == "0"
@@ -251,9 +279,11 @@ class TestLineSpacing:
     def test_spacing_elements_lead_pPr(self):
         """DrawingML requires lnSpc, then spcBef, before every other child —
         PowerPoint rejects the file otherwise."""
-        p = pinyin_paragraph_elements(add_pinyin(make_pptx(["尊主為大"])))[0]
-        children = [c.tag for c in p.find(_qn("pPr"))]
-        assert children[:2] == [_qn("lnSpc"), _qn("spcBef")]
+        out = add_pinyin(make_pptx(["尊主為大"]), gap_pct=45)
+        lyric = [c.tag for c in lyric_paragraph_elements(out)[0].find(_qn("pPr"))]
+        assert lyric[0] == _qn("lnSpc")
+        py = [c.tag for c in pinyin_paragraph_elements(out)[0].find(_qn("pPr"))]
+        assert py[0] == _qn("spcBef")
 
 
 class TestGroupedShapes:
