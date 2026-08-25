@@ -22,8 +22,10 @@ MIME_PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presen
 def process_pptx(data: bytes, min_pt: float, pinyin_pt: float,
                  version: int = PINYIN_VERSION) -> bytes:
     """Cached: identical file + settings reuse the previous result, so UI
-    reruns don't re-scan the deck. `version` keys the cache to the core
-    logic, so releases invalidate stale results."""
+    reruns don't re-scan the deck. `version` keys the cache to the core logic
+    so a release invalidates stale results — it must be passed explicitly by
+    the caller, because Streamlit hashes only the arguments it actually
+    receives and would silently ignore a default."""
     return add_pinyin(io.BytesIO(data), min_pt=min_pt,
                       pinyin_pt=pinyin_pt).getvalue()
 
@@ -192,6 +194,9 @@ html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; color:var(
 }
 .foot code{ background:var(--accent-tint); color:var(--accent-strong);
   padding:.05rem .35rem; border-radius:5px; font-size:.9em; }
+/* build marker: confirms at a glance which version is actually deployed */
+.foot .ver{ display:block; margin-top:.5rem; opacity:.55; font-size:.9em;
+  letter-spacing:.02em; }
 
 /* accessibility: focus + reduced motion */
 :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
@@ -236,7 +241,7 @@ if files:
         try:
             t0 = time.perf_counter()
             with st.spinner(f"Adding pinyin to {f.name}…"):
-                data = process_pptx(raw, min_pt, pinyin_pt)
+                data = process_pptx(raw, min_pt, pinyin_pt, PINYIN_VERSION)
             elapsed = time.perf_counter() - t0
             new_name = f.name.rsplit(".", 1)[0] + "_pinyin.pptx"
 
@@ -289,8 +294,9 @@ if files:
                 "─ traceback ─\n" + "\n".join(tb_tail)
             )
 
-st.markdown("""
+st.markdown(f"""
 <div class="foot">
   Spotted a wrong reading? Let the administrator know.
+  <span class="ver">engine v{PINYIN_VERSION}</span>
 </div>
 """, unsafe_allow_html=True)

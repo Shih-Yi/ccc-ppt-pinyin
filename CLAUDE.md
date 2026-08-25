@@ -51,6 +51,14 @@
 - **部署設定**:Repository → 你的 repo;Branch → master(本 repo 的預設分支);Main file path → `app.py`。按 Deploy 後 Streamlit 會先讀 `requirements.txt` 與 `packages.txt` 裝好環境,再跑 `app.py`。
 - **顯示字型**:Sora / Inter 由使用者瀏覽器向 Google Fonts 載入(client-side),部署環境不需額外安裝。
 
+**確認新版有沒有真的上線:**
+
+頁尾會印 `engine vN`,N 就是 `pinyin_pptx.PINYIN_VERSION`。改完程式 push 之後,如果網頁上的數字還是舊的,就是 Streamlit 還沒重新部署——到 app 右下角 Manage app → 三個點 → Reboot app,或等它自己抓。數字對了才代表跑的是新程式。
+
+**處理結果有快取:**
+
+`app.py` 的 `process_pptx` 掛了 `@st.cache_data`,key 是「檔案內容 + min_pt + pinyin_pt + PINYIN_VERSION」。**版本號必須由呼叫端明確傳入**——Streamlit 只雜湊實際收到的引數,寫成預設值它會直接忽略,那樣改了邏輯也不會讓舊結果失效。所以每次改動輸出邏輯都要 bump `PINYIN_VERSION`。
+
 **免費層須知:**
 - 記憶體約 1GB(處理幾 MB 的 PPTX 綽綽有餘)。
 - App 閒置一段時間會休眠,下次開啟需等十幾秒喚醒。
