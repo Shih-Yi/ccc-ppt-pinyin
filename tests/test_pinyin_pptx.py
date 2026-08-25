@@ -264,9 +264,15 @@ class TestLyricToPinyinGap:
             add_pinyin(make_pptx(["尊主為大"]), gap_pct=45))[0]
         assert _line_height(p) is None
 
-    def test_default_leaves_the_decks_own_line_spacing_alone(self):
-        assert DEFAULT_GAP_PCT == 0
+    def test_the_default_gap_is_written_on_the_lyric_paragraph(self):
         out = add_pinyin(make_pptx(["尊主為大"]))
+        assert _line_height(lyric_paragraph_elements(out)[0]) == \
+            str(DEFAULT_GAP_PCT * 1000)
+        assert _line_height(pinyin_paragraph_elements(out)[0]) is None
+
+    def test_zero_leaves_the_decks_own_line_spacing_alone(self):
+        """The escape hatch for a deck whose spacing is already right."""
+        out = add_pinyin(make_pptx(["尊主為大"]), gap_pct=0)
         assert _line_height(lyric_paragraph_elements(out)[0]) is None
         assert _line_height(pinyin_paragraph_elements(out)[0]) is None
 
