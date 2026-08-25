@@ -9,7 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from notifier import notify
-from pinyin_pptx import DEFAULT_GAP_PCT, PINYIN_VERSION, add_pinyin
+from pinyin_pptx import PINYIN_VERSION, add_pinyin
 
 
 def now_str() -> str:
@@ -19,13 +19,13 @@ MIME_PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presen
 
 
 @st.cache_data(show_spinner=False, max_entries=20)
-def process_pptx(data: bytes, min_pt: float, pinyin_pt: float, gap_pct: float,
+def process_pptx(data: bytes, min_pt: float, pinyin_pt: float,
                  version: int = PINYIN_VERSION) -> bytes:
     """Cached: identical file + settings reuse the previous result, so UI
     reruns don't re-scan the deck. `version` keys the cache to the core
     logic, so releases invalidate stale results."""
-    return add_pinyin(io.BytesIO(data), min_pt=min_pt, pinyin_pt=pinyin_pt,
-                      gap_pct=gap_pct).getvalue()
+    return add_pinyin(io.BytesIO(data), min_pt=min_pt,
+                      pinyin_pt=pinyin_pt).getvalue()
 
 st.set_page_config(page_title="詩歌拼音 Shīgē Pinyin", page_icon="🎵", layout="centered")
 
@@ -226,22 +226,6 @@ with st.expander("Advanced settings", expanded=True):
         "Pinyin font size (pt)", value=20, min_value=6, max_value=60,
         help="Absolute size of the pinyin text.",
     )
-    gap_pct = st.number_input(
-        "Gap between lyric and its pinyin (%)",
-        value=DEFAULT_GAP_PCT, min_value=0, max_value=200, step=5,
-        help="Distance from each Chinese line down to the pinyin directly "
-             "below it, as a percentage of the Chinese font size. Lower is "
-             "tighter, until the two rows collide — with 48pt lyrics and 20pt "
-             "pinyin that happens below about 75%. Set it to 0 to leave the "
-             "original file's line spacing untouched. No other gap is touched: "
-             "lyric-to-lyric and the English lines stay put.",
-    )
-    st.caption(
-        "Keeping the original spacing from your file."
-        if not gap_pct else
-        f"{gap_pct}% of the Chinese font size between each lyric and its own "
-        "pinyin — lower is tighter; raise it if the two rows overlap."
-    )
 
 if "notified" not in st.session_state:
     st.session_state.notified = set()
@@ -252,13 +236,13 @@ if files:
         try:
             t0 = time.perf_counter()
             with st.spinner(f"Adding pinyin to {f.name}…"):
-                data = process_pptx(raw, min_pt, pinyin_pt, gap_pct)
+                data = process_pptx(raw, min_pt, pinyin_pt)
             elapsed = time.perf_counter() - t0
             new_name = f.name.rsplit(".", 1)[0] + "_pinyin.pptx"
 
             # notify the owner once per new result in this session
             digest = hashlib.md5(
-                raw + f"{min_pt}|{pinyin_pt}|{gap_pct}".encode()).hexdigest()
+                raw + f"{min_pt}|{pinyin_pt}".encode()).hexdigest()
             if digest not in st.session_state.notified:
                 st.session_state.notified.add(digest)
                 notify(
@@ -266,8 +250,7 @@ if files:
                     f"🕐 {now_str()}\n"
                     f"📄 {f.name}\n"
                     f"📦 輸入 {len(raw) / 1e6:.2f} MB → 輸出 {len(data) / 1e6:.2f} MB\n"
-                    f"⚙️ min_pt={min_pt}, pinyin_pt={pinyin_pt}, "
-                    f"gap={gap_pct}%\n"
+                    f"⚙️ min_pt={min_pt}, pinyin_pt={pinyin_pt}\n"
                     f"⏱️ {elapsed:.2f}s"
                 )
             with st.container(border=True):
@@ -301,8 +284,7 @@ if files:
                 "❌ 詩歌拼音 處理失敗\n"
                 f"🕐 {now_str()}\n"
                 f"📄 {f.name} ({len(raw) / 1e6:.2f} MB)\n"
-                f"⚙️ min_pt={min_pt}, pinyin_pt={pinyin_pt}, "
-                f"gap={gap_pct}%\n"
+                f"⚙️ min_pt={min_pt}, pinyin_pt={pinyin_pt}\n"
                 f"💥 {type(e).__name__}: {e}\n"
                 "─ traceback ─\n" + "\n".join(tb_tail)
             )
