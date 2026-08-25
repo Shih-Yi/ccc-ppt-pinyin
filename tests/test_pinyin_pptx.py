@@ -213,6 +213,19 @@ class TestTrailingWhitespace:
         assert len(led) - len(led.lstrip()) > len(clean) - len(clean.lstrip())
 
 
+class TestReadingOverrides:
+    """Readings the dictionary gets wrong for sung worship lyrics."""
+
+    @pytest.mark.parametrize("line, expected", [
+        ("祢是我的神", "nǐ shì wǒ di shén"),
+        ("神的兒子", "shén di ér zi"),
+        ("尊主為大", "zūn zhǔ wéi dà"),
+    ])
+    def test_overridden_readings(self, line, expected):
+        py = all_para_texts(add_pinyin(make_pptx([line])))[1]
+        assert py.split() == expected.split()
+
+
 def _paragraph_elements(buf, keep):
     """The <a:p> element of every paragraph whose text satisfies `keep`."""
     prs = Presentation(buf)

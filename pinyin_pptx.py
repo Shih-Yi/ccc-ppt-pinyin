@@ -30,6 +30,7 @@ from shape_walk import iter_text_shapes
 CHAR_OVERRIDES = {
     "祢": "nǐ",   # 對神的第二人稱,字典音為 mí(姓氏)
     "袮": "nǐ",
+    "的": "di",   # 唱的時候是 di,不是輕聲 de;刻意不標調號
 }
 PHRASE_OVERRIDES = {
     "尊主為大": ["zūn", "zhǔ", "wéi", "dà"],
@@ -46,7 +47,7 @@ PINYIN_TOKEN_RE = re.compile(
     r"^[A-Za-z\u00fc\u00dc\u0101\u00e1\u01ce\u00e0\u0113\u00e9\u011b\u00e8\u012b\u00ed\u01d0\u00ec\u014d\u00f3\u01d2\u00f2\u016b\u00fa\u01d4\u00f9\u01d6\u01d8\u01da\u01dc\u0144\u0148\u01f9\u1e3f'\u2019\-\u00b7]+[,,.\u3002!!??::;;]?$"
 )
 # bump when output logic changes, so cached results upstream are invalidated
-PINYIN_VERSION = 9
+PINYIN_VERSION = 10
 # 中文歌詞與它下方拼音的間距,寫在「中文歌詞段落」自己的行高上
 # (佔中文字級的百分比)。48pt 歌詞 + 20pt 拼音實測:90 是貼合又不相碰的下限,
 # 70 以下兩行就疊在一起。填 0 則完全不寫、維持原檔自己的行距
