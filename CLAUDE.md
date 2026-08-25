@@ -12,6 +12,7 @@
 - **對齊方式**:用字型度量計算位置、以空格墊出來,**不用 tab stops**(LibreOffice 等播放軟體會忽略 tab stop)。因為 Arial 與 Liberation Sans 字寬相同,PowerPoint 與 LibreOffice 渲染結果一致。
 - **行尾空白不計入寬度**:算「置中的中文行從哪裡開始」時會先 `rstrip()`。播放軟體排版時會丟掉行尾空白,若照算會以為整行比實際寬,整條拼音就往左偏(半個空白的寬度;48pt 中文行尾一個半形空格 = 左偏 12pt)。行首空白是會畫出來的,照算。
 - **拼音字級**:絕對 pt 值(預設 20pt),在 Advanced settings 可調。
+- **拼音行距**:拼音段落會寫入自己的行高(`<a:lnSpc><a:spcPct>`,預設 70%,並把 `spcBef` 歸零),在 Advanced settings 可調(20–200%)。播放軟體是依「該行自己的行高」往下推進,所以縮小拼音行的行高就等於把拼音往上貼近中文行,中文行本身的行距完全不動。
 - **群組圖形會遞迴進去**:`slide.shapes` 只列出最上層物件,群組(`<p:grpSp>`)本身沒有文字框,直接迴圈會把裡面的歌詞整個漏掉。`shape_walk.iter_text_shapes` 會遞迴走進群組;群組有自己的座標系統,子物件寬度會依 `ext/chExt` 換算回投影片單位,拼音置中才會準。
 - **純函式設計**:`add_pinyin(pptx) → pptx`,不改動輸入檔,同一份檔可重複處理。
 - **內建讀音修正**:`祢 → nǐ`、`尊主為大 → wéi`。程式裡 `CHAR_OVERRIDES` / `PHRASE_OVERRIDES` 兩個 dict 可自行擴充。
@@ -24,6 +25,7 @@
 - **多音字需人工把關**:pypinyin 對部分字會判錯(例:`祢` 曾判成 mí、`為` 判成 wèi)。常見要注意的字:行、樂、降、還、為、祢。發現錯的就加一條 override。
 - **字級門檻是啟發式**:歌詞若低於 40pt 不會被處理,要在 Advanced settings 調低 `min_pt`;但門檻調太低(低於約 29pt),底部那條 28pt 重複字幕也會被加上拼音。安全區間是「最大的非歌詞文字」與「最小的歌詞」之間。
 - **相鄰寬音節無法完全置中**:像 `shēng mìng` 這種兩個寬音節相鄰時,物理上無法同時精準置中,演算法會讓它們對稱地微幅錯開,最差偏差約 1/4 字寬,視覺上仍明確落在對應字下方。這也是拼音字級不宜設太大的原因。
+- **行距太小會相碰**:行高低於約 100% 時拼音會往中文行靠,調到 50% 以下、或拼音字級偏大時,可能碰到中文字的下緣。發現相碰就把百分比往上調。
 - **絕對 pt 不隨行縮放**:整份檔所有拼音同一大小,不會依各行中文字級自動縮放。這份檔主歌詞都是 48pt,所以沒差;若某份檔各行中文字級不同,拼音不會跟著變。
 - **python-pptx 會重寫 XML**:存檔時會改寫 XML 格式(namespace 順序、空白、標籤寫法),功能上無害,但用檔案層級 diff 會看到很多 slide/layout 顯示「changed」。若要求真正最小 diff,需直接操作 XML(程式會複雜不少,目前不採用)。
 - **UI 樣式依賴 Streamlit 內部選擇器**:美化是靠注入 CSS 命中 Streamlit 的 `data-testid` 選擇器。這些選擇器穩定,但 Streamlit 若大改版動到它們,拖曳區或按鈕樣式可能需微調(通常幾行就能修)。
@@ -44,7 +46,7 @@
 | `packages.txt` | 系統套件(由 apt 安裝) | `fonts-liberation` |
 
 - **`packages.txt` 必要**:拼音對齊要靠 Liberation Sans 的字寬計算,那是系統字型、不是 pip 套件,少了它對齊會失準。
-- **部署設定**:Repository → 你的 repo;Branch → main;Main file path → `app.py`。按 Deploy 後 Streamlit 會先讀 `requirements.txt` 與 `packages.txt` 裝好環境,再跑 `app.py`。
+- **部署設定**:Repository → 你的 repo;Branch → master(本 repo 的預設分支);Main file path → `app.py`。按 Deploy 後 Streamlit 會先讀 `requirements.txt` 與 `packages.txt` 裝好環境,再跑 `app.py`。
 - **顯示字型**:Sora / Inter 由使用者瀏覽器向 Google Fonts 載入(client-side),部署環境不需額外安裝。
 
 **免費層須知:**
@@ -58,4 +60,5 @@
 
 1. 掃一眼多音字(行、樂、降、還、為、祢 等),讀音錯的加 override。
 2. 確認歌詞字級;若不是 40pt 以上,在 Advanced settings 調 `min_pt`。
-3. 打開處理後的檔案,確認拼音沒有溢出背景、對齊正常。
+3. 覺得拼音跟中文離太遠或太擠,調 Advanced settings 的 Pinyin line spacing。
+4. 打開處理後的檔案,確認拼音沒有溢出背景、對齊正常。

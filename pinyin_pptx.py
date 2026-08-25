@@ -46,7 +46,9 @@ PINYIN_TOKEN_RE = re.compile(
     r"^[A-Za-z\u00fc\u00dc\u0101\u00e1\u01ce\u00e0\u0113\u00e9\u011b\u00e8\u012b\u00ed\u01d0\u00ec\u014d\u00f3\u01d2\u00f2\u016b\u00fa\u01d4\u00f9\u01d6\u01d8\u01da\u01dc\u0144\u0148\u01f9\u1e3f'\u2019\-\u00b7]+[,,.\u3002!!??::;;]?$"
 )
 # bump when output logic changes, so cached results upstream are invalidated
-PINYIN_VERSION = 3
+PINYIN_VERSION = 4
+# 拼音行的行高(佔拼音字級的百分比)。100 = 單行行距;調低會把拼音往上拉近歌詞
+DEFAULT_LINE_SPACING_PCT = 70
 
 A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 EMU_PER_PT = 12700
@@ -203,7 +205,25 @@ def _qn(tag):
     return f"{{{A_NS}}}{tag}"
 
 
-def _pinyin_paragraph(src_p, py_line, py_pt, latin_font):
+def _set_line_spacing(pPr, pct):
+    """Set the paragraph's line height to `pct` percent of its font size, with
+    no extra space before it. This is what pulls the pinyin row up towards the
+    lyric line above: a renderer advances to a line by that line's own height,
+    so shrinking it tightens the lyric-to-pinyin gap without touching the
+    lyrics. lnSpc and spcBef must lead pPr's children per the DrawingML schema."""
+    for tag in ("lnSpc", "spcBef"):
+        el = pPr.find(_qn(tag))
+        if el is not None:
+            pPr.remove(el)
+    lnSpc = pPr.makeelement(_qn("lnSpc"), {})
+    lnSpc.append(pPr.makeelement(_qn("spcPct"), {"val": str(int(round(pct * 1000)))}))
+    spcBef = pPr.makeelement(_qn("spcBef"), {})
+    spcBef.append(pPr.makeelement(_qn("spcPts"), {"val": "0"}))
+    pPr.insert(0, lnSpc)
+    pPr.insert(1, spcBef)
+
+
+def _pinyin_paragraph(src_p, py_line, py_pt, latin_font, line_spacing_pct):
     """A copy of `src_p` carrying the pinyin line: left-aligned, unindented,
     a single run at py_pt in italic. Everything else (colour, shadow, effects)
     is inherited from the lyric paragraph it mirrors."""
@@ -216,6 +236,7 @@ def _pinyin_paragraph(src_p, py_line, py_pt, latin_font):
     pPr.set("algn", "l")
     pPr.set("marL", "0")
     pPr.set("indent", "0")
+    _set_line_spacing(pPr, line_spacing_pct)
 
     runs = new_p.findall(_qn("r"))
     for extra in runs[1:]:
@@ -240,7 +261,8 @@ def _pinyin_paragraph(src_p, py_line, py_pt, latin_font):
     return new_p
 
 
-def _annotate_shape(shape, width_emu, slide, prs, min_pt, pinyin_pt, latin_font):
+def _annotate_shape(shape, width_emu, slide, prs, min_pt, pinyin_pt, latin_font,
+                    line_spacing_pct):
     """Add a pinyin line below every qualifying Chinese paragraph in `shape`."""
     tf = shape.text_frame
     strip_pinyin_paragraphs(tf)  # 先拿掉既有拼音行(通常在歌詞上面)
@@ -258,20 +280,26 @@ def _annotate_shape(shape, width_emu, slide, prs, min_pt, pinyin_pt, latin_font)
 
         cells = char_cells(text, size)
         py_line = build_padded_pinyin(cells, area_w_pt, pinyin_pt)
-        p._p.addnext(_pinyin_paragraph(p._p, py_line, pinyin_pt, latin_font))
+        p._p.addnext(_pinyin_paragraph(p._p, py_line, pinyin_pt, latin_font,
+                                       line_spacing_pct))
 
 
-def add_pinyin(src, min_pt: float = 40, pinyin_pt: float = 20, latin_font: str = "Arial"):
+def add_pinyin(src, min_pt: float = 40, pinyin_pt: float = 20,
+               line_spacing_pct: float = DEFAULT_LINE_SPACING_PCT,
+               latin_font: str = "Arial"):
     """Insert a syllable-aligned pinyin line below every Chinese paragraph
     whose font size >= min_pt. pinyin_pt is the absolute pinyin font size in
-    points. Returns io.BytesIO of the new .pptx."""
+    points; line_spacing_pct is the pinyin line's height as a percentage of
+    that size - lower values sit the pinyin closer to the lyric line above.
+    Returns io.BytesIO of the new .pptx."""
     prs = Presentation(src)
     for slide in prs.slides:
         for shape, width_emu in iter_text_shapes(slide):
             if width_emu is None:  # no width stated anywhere: assume full slide
                 width_emu = int(prs.slide_width)
             _annotate_shape(shape, width_emu, slide, prs,
-                            min_pt, pinyin_pt, latin_font)
+                            min_pt, pinyin_pt, latin_font,
+                            line_spacing_pct)
 
     out = io.BytesIO()
     prs.save(out)

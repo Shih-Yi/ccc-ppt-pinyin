@@ -9,7 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from notifier import notify
-from pinyin_pptx import PINYIN_VERSION, add_pinyin
+from pinyin_pptx import DEFAULT_LINE_SPACING_PCT, PINYIN_VERSION, add_pinyin
 
 
 def now_str() -> str:
@@ -20,11 +20,13 @@ MIME_PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presen
 
 @st.cache_data(show_spinner=False, max_entries=20)
 def process_pptx(data: bytes, min_pt: float, pinyin_pt: float,
+                 line_spacing_pct: float,
                  version: int = PINYIN_VERSION) -> bytes:
     """Cached: identical file + settings reuse the previous result, so UI
     reruns don't re-scan the deck. `version` keys the cache to the core
     logic, so releases invalidate stale results."""
-    return add_pinyin(io.BytesIO(data), min_pt=min_pt, pinyin_pt=pinyin_pt).getvalue()
+    return add_pinyin(io.BytesIO(data), min_pt=min_pt, pinyin_pt=pinyin_pt,
+                      line_spacing_pct=line_spacing_pct).getvalue()
 
 st.set_page_config(page_title="詩歌拼音 Shīgē Pinyin", page_icon="🎵", layout="centered")
 
@@ -225,6 +227,15 @@ with st.expander("Advanced settings", expanded=True):
         "Pinyin font size (pt)", value=20, min_value=6, max_value=60,
         help="Absolute size of the pinyin text.",
     )
+    line_spacing_pct = st.number_input(
+        "Pinyin line spacing (%)",
+        value=DEFAULT_LINE_SPACING_PCT, min_value=20, max_value=200, step=5,
+        help="Height of the pinyin line as a percentage of its font size. "
+             "Lower it to tuck the pinyin closer under the Chinese line; "
+             "100% is normal single spacing.",
+    )
+    st.caption(f"{line_spacing_pct}% — lower values pull the pinyin closer to "
+               "the lyrics above; raise it if the two rows touch.")
 
 if "notified" not in st.session_state:
     st.session_state.notified = set()
@@ -235,12 +246,13 @@ if files:
         try:
             t0 = time.perf_counter()
             with st.spinner(f"Adding pinyin to {f.name}…"):
-                data = process_pptx(raw, min_pt, pinyin_pt)
+                data = process_pptx(raw, min_pt, pinyin_pt, line_spacing_pct)
             elapsed = time.perf_counter() - t0
             new_name = f.name.rsplit(".", 1)[0] + "_pinyin.pptx"
 
             # notify the owner once per new result in this session
-            digest = hashlib.md5(raw + f"{min_pt}|{pinyin_pt}".encode()).hexdigest()
+            digest = hashlib.md5(
+                raw + f"{min_pt}|{pinyin_pt}|{line_spacing_pct}".encode()).hexdigest()
             if digest not in st.session_state.notified:
                 st.session_state.notified.add(digest)
                 notify(
@@ -248,7 +260,8 @@ if files:
                     f"🕐 {now_str()}\n"
                     f"📄 {f.name}\n"
                     f"📦 輸入 {len(raw) / 1e6:.2f} MB → 輸出 {len(data) / 1e6:.2f} MB\n"
-                    f"⚙️ min_pt={min_pt}, pinyin_pt={pinyin_pt}\n"
+                    f"⚙️ min_pt={min_pt}, pinyin_pt={pinyin_pt}, "
+                    f"line_spacing={line_spacing_pct}%\n"
                     f"⏱️ {elapsed:.2f}s"
                 )
             with st.container(border=True):
@@ -282,7 +295,8 @@ if files:
                 "❌ 詩歌拼音 處理失敗\n"
                 f"🕐 {now_str()}\n"
                 f"📄 {f.name} ({len(raw) / 1e6:.2f} MB)\n"
-                f"⚙️ min_pt={min_pt}, pinyin_pt={pinyin_pt}\n"
+                f"⚙️ min_pt={min_pt}, pinyin_pt={pinyin_pt}, "
+                f"line_spacing={line_spacing_pct}%\n"
                 f"💥 {type(e).__name__}: {e}\n"
                 "─ traceback ─\n" + "\n".join(tb_tail)
             )
