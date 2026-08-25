@@ -228,14 +228,15 @@ with st.expander("Advanced settings", expanded=True):
         help="Absolute size of the pinyin text.",
     )
     line_spacing_pct = st.number_input(
-        "Pinyin line spacing (%)",
+        "Gap between lyric and its pinyin (%)",
         value=DEFAULT_LINE_SPACING_PCT, min_value=20, max_value=200, step=5,
-        help="Height of the pinyin line as a percentage of its font size. "
-             "Lower it to tuck the pinyin closer under the Chinese line; "
-             "100% is normal single spacing.",
+        help="How far each pinyin line sits below the Chinese line it belongs "
+             "to, as a percentage of the pinyin font size. 100% is normal "
+             "single spacing; lower values tuck the pinyin closer. The spacing "
+             "between the lyric lines themselves is never changed.",
     )
-    st.caption(f"{line_spacing_pct}% — lower values pull the pinyin closer to "
-               "the lyrics above; raise it if the two rows touch.")
+    st.caption(f"{line_spacing_pct}% — lower values tuck each pinyin closer to "
+               "its own Chinese line; raise it if the two rows touch.")
 
 if "notified" not in st.session_state:
     st.session_state.notified = set()
