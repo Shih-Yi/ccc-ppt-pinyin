@@ -15,6 +15,19 @@ from pinyin_pptx import PINYIN_VERSION, add_pinyin
 def now_str() -> str:
     return datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d %H:%M:%S")
 
+
+def split_duplicates(files):
+    """Split uploads into first-seen files and later copies of identical
+    content, so the same deck uploaded twice is reported instead of processed
+    twice."""
+    firsts, dupes, seen = [], [], set()
+    for f in files:
+        digest = hashlib.md5(f.getvalue()).hexdigest()
+        (dupes if digest in seen else firsts).append(f)
+        seen.add(digest)
+    return firsts, dupes
+
+
 MIME_PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
 
@@ -236,7 +249,11 @@ if "notified" not in st.session_state:
     st.session_state.notified = set()
 
 if files:
-    for f in files:
+    files, duplicates = split_duplicates(files)
+    for f in duplicates:
+        st.warning(f"Skipped {f.name} — you uploaded this same file more than once.")
+
+    for i, f in enumerate(files):
         raw = f.getvalue()
         try:
             t0 = time.perf_counter()
@@ -271,7 +288,7 @@ if files:
                     data,
                     file_name=new_name,
                     mime=MIME_PPTX,
-                    key=f.name,
+                    key=f"dl-{i}-{f.name}",
                 )
             # done: notify and scroll to the download button
             st.toast(f"✅ Pinyin added — {new_name} is ready", icon="🎵")
